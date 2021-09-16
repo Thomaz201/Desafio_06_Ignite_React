@@ -2,14 +2,16 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useState } from 'react';
 import { GetStaticProps } from 'next';
-import Head from 'next/head';
+import Link from 'next/link';
 import Prismic from '@prismicio/client';
 import { format } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
+import Head from 'next/head';
+
 import { FiCalendar, FiUser } from 'react-icons/fi';
-import Link from 'next/link';
+
+import { useState } from 'react';
 import { getPrismicClient } from '../services/prismic';
 
 import commonStyles from '../styles/common.module.scss';
@@ -32,9 +34,10 @@ interface PostPagination {
 
 interface HomeProps {
   postsPagination: PostPagination;
+  preview: boolean;
 }
 
-export default function Home({ postsPagination }: HomeProps) {
+export default function Home({ postsPagination, preview }: HomeProps) {
   const { next_page, results } = postsPagination;
   const [posts, setPosts] = useState<Post[]>(results);
   const [nextPage, setNextPage] = useState<string>(next_page);
@@ -102,17 +105,28 @@ export default function Home({ postsPagination }: HomeProps) {
           </strong>
         )}
       </main>
+      {preview && (
+        <aside className={commonStyles.preview}>
+          <Link href="/api/exit-preview">
+            <a>Sair do modo Preview</a>
+          </Link>
+        </aside>
+      )}
     </>
   );
 }
 
-export const getStaticProps: GetStaticProps = async () => {
+export const getStaticProps: GetStaticProps<HomeProps> = async ({
+  preview = false,
+  previewData,
+}) => {
   const prismic = getPrismicClient();
   const postsResponse = await prismic.query(
     [Prismic.predicates.at('document.type', 'posts')],
     {
-      fetch: ['post.title', 'post.subtitle', 'post.author'],
-      pageSize: 1,
+      fetch: ['posts.title', 'posts.subtitle', 'posts.author'],
+      pageSize: 5,
+      ref: previewData?.ref ?? null,
     }
   );
 
@@ -130,7 +144,7 @@ export const getStaticProps: GetStaticProps = async () => {
     };
   });
 
-  const timeToRevalidate = 60 * 5;
+  const timeToRevalidate = 1;
 
   return {
     props: {
@@ -138,6 +152,7 @@ export const getStaticProps: GetStaticProps = async () => {
         next_page,
         results: posts,
       },
+      preview,
     },
     revalidate: timeToRevalidate,
   };
